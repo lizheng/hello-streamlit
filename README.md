@@ -18,3 +18,8 @@ This data app shows a simple demonstration of an interactive data explorer that 
 
 - [TMDB 5000 Movie Dataset](https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata)
   
+## Export the dependencies
+
+```shell
+pdm export --prod --format requirements --output requirements.txt
+```
