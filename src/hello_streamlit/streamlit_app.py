@@ -1,65 +1,26 @@
-import altair as alt
-import numpy as np
-import pandas as pd
+from openai import OpenAI
 import streamlit as st
 
-# Page title
-st.set_page_config(page_title='Interactive Data Explorer', page_icon='📊')
-st.title('📊 Interactive Data Explorer')
+with st.sidebar:
+    openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
 
-with st.expander('About this app'):
-    st.markdown('**What can this app do?**')
-    st.info(
-        'This app shows the use of Pandas for data wrangling, '
-        'Altair for chart creation and editable dataframe for data interaction.'
-    )
-    st.markdown('**How to use the app?**')
-    st.warning(
-        'To engage with the app, '
-        '1. Select genres of your interest in the drop-down selection box and then '
-        '2. Select the year duration from the slider widget. '
-        'As a result, this should generate an updated editable DataFrame and line plot.'
-    )
+st.title("💬 Chatbot")
+st.caption("🚀 A streamlit chatbot powered by OpenAI LLM")
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
 
-st.subheader('Which Movie Genre performs ($) best at the box office?')
+for msg in st.session_state.messages:
+    st.chat_message(msg["role"]).write(msg["content"])
 
-# Load data
-df = pd.read_csv('data/movies_genres_summary.csv')
-df.year = df.year.astype('int')
+if prompt := st.chat_input():
+    if not openai_api_key:
+        st.info("Please add your OpenAI API key to continue.")
+        st.stop()
 
-# Input widgets
-## Genres selection
-genres_list = df.genre.unique()
-genres_selection = st.multiselect(
-    'Select genres', genres_list, ['Action', 'Adventure', 'Biography', 'Comedy', 'Drama', 'Horror']
-)
-
-## Year selection
-year_list = df.year.unique()
-year_selection = st.slider('Select year duration', 1986, 2006, (2000, 2016))
-year_selection_list = list(np.arange(year_selection[0], year_selection[1] + 1))
-
-df_selection = df[df.genre.isin(genres_selection) & df['year'].isin(year_selection_list)]
-reshaped_df = df_selection.pivot_table(index='year', columns='genre', values='gross', aggfunc='sum', fill_value=0)
-reshaped_df = reshaped_df.sort_values(by='year', ascending=False)
-
-
-# Display DataFrame
-
-df_editor = st.data_editor(
-    reshaped_df,
-    height=212,
-    use_container_width=True,
-    column_config={'year': st.column_config.TextColumn('Year')},
-    num_rows='dynamic',
-)
-df_chart = pd.melt(df_editor.reset_index(), id_vars='year', var_name='genre', value_name='gross')
-
-# Display chart
-chart = (
-    alt.Chart(df_chart)
-    .mark_line()
-    .encode(x=alt.X('year:N', title='Year'), y=alt.Y('gross:Q', title='Gross earnings ($)'), color='genre:N')
-    .properties(height=320)
-)
-st.altair_chart(chart, use_container_width=True)
+    client = OpenAI(api_key=openai_api_key)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.chat_message("user").write(prompt)
+    response = client.chat.completions.create(model="gpt-3.5-turbo", messages=st.session_state.messages)
+    msg = response.choices[0].message.content
+    st.session_state.messages.append({"role": "assistant", "content": msg})
+    st.chat_message("assistant").write(msg)
